@@ -88,14 +88,17 @@ const App = () => {
         setWatchedFilms(transformedFilms);
       }
 
-      // Load watchlist if available
+      // Load watchlist from watchlist service
       const watchlistResult = await watchlistService.getWatchlist(userId);
       if (watchlistResult.success && watchlistResult.films) {
+        console.log('Loaded watchlist:', watchlistResult.films); // Debug log
         setWatchlist(watchlistResult.films);
+      } else {
+        console.log('No watchlist found or error:', watchlistResult); // Debug log
       }
 
     } catch (error) {
-      console.log('No existing data found in microservices, starting fresh');
+      console.log('Error loading existing data:', error);
     }
   };
 
