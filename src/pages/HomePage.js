@@ -202,15 +202,31 @@ const HomePage = ({
                       className="bg-gray-700 p-4 rounded-lg shadow-xl border border-gray-600 hover:border-purple-400 transition duration-300"
                     >
                       <div className="flex items-start space-x-4">
-                        <div className="w-16 h-24 bg-gray-600 rounded flex items-center justify-center text-xs text-gray-300">
-                          Poster
+                        <div className="w-16 h-24 bg-gray-600 rounded flex items-center justify-center text-xs text-gray-300 overflow-hidden">
+                          {film.poster ? (
+                            <img
+                              src={film.poster}
+                              alt={film.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { 
+                                e.target.onerror = null; 
+                                e.target.style.display = 'none';
+                                e.target.parentNode.innerHTML = 'Poster';
+                              }}
+                            />
+                          ) : (
+                            'Poster'
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="text-lg font-semibold text-white mb-1">{film.title}</h4>
                           <p className="text-gray-300 text-sm mb-2">{film.genre} • {film.releaseYear}</p>
                           <div className="flex items-center space-x-1 mb-2">
                             <Clock className="w-4 h-4 text-purple-400" />
-                            <span className="text-purple-400 text-xs capitalize">{film.status?.replace('_', ' ')}</span>
+                            <span className="text-purple-400 text-xs">
+                              {film.status === 'want_to_watch' ? 'Want to watch' : 
+                               film.status?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
                           </div>
                           <p className="text-gray-500 text-xs">Added: {new Date(film.addedAt).toLocaleDateString()}</p>
                         </div>

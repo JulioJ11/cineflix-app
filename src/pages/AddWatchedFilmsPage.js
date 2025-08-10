@@ -289,7 +289,7 @@ const AddWatchedFilmsPage = ({
                         genre: selectedFilmForAdd.genre || 'Unknown',
                         releaseYear: selectedFilmForAdd.year,
                         description: selectedFilmForAdd.description,
-                        poster: selectedFilmForAdd.poster
+                        poster: selectedFilmForAdd.poster || localFilmPoster
                       });
                     }
                   }}

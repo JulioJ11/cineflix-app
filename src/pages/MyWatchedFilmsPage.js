@@ -24,18 +24,20 @@ const MyWatchedFilmsPage = ({
   const [maxRating, setMaxRating] = useState('');
   const [yearFilter, setYearFilter] = useState('');
 
-  // Local filtered and sorted films
+  // Local filtered and sorted films - THIS IS THE KEY CHANGE
   const [displayedFilms, setDisplayedFilms] = useState(films);
+  const [originalFilms, setOriginalFilms] = useState(films); // Keep original data safe
 
   useEffect(() => {
     setDisplayedFilms(films);
+    setOriginalFilms(films); // Always preserve the original
   }, [films]);
 
-  // Get unique values for filter options
+  // Get unique values for filter options - use original films
   const getFilterOptions = () => {
-    const genres = [...new Set(films.map(f => f.genre).filter(Boolean))].sort();
-    const years = [...new Set(films.map(f => f.year).filter(Boolean))].sort((a, b) => b - a);
-    const ratings = [...new Set(films.map(f => f.rating).filter(r => r > 0))].sort((a, b) => b - a);
+    const genres = [...new Set(originalFilms.map(f => f.genre).filter(Boolean))].sort();
+    const years = [...new Set(originalFilms.map(f => f.year).filter(Boolean))].sort((a, b) => b - a);
+    const ratings = [...new Set(originalFilms.map(f => f.rating).filter(r => r > 0))].sort((a, b) => b - a);
     
     return { genres, years, ratings };
   };
@@ -60,10 +62,11 @@ const MyWatchedFilmsPage = ({
   const applySorting = async (criteria, order) => {
     setIsLoading(true);
     try {
-      await sortFilms(criteria, order);
+      // DON'T call the microservice sortFilms which modifies global state
+      // Instead, do local sorting on displayed films
+      localSort(criteria, order);
     } catch (error) {
       console.error('Sorting failed:', error);
-      // Fallback to local sorting
       localSort(criteria, order);
     }
     setIsLoading(false);
@@ -118,15 +121,16 @@ const MyWatchedFilmsPage = ({
     setIsLoading(true);
 
     try {
+      // IMPORTANT: Filter from original films, not current displayed films
+      // This prevents data loss when applying/clearing filters
       if (Object.keys(filters).length > 0) {
-        await filterFilms(filters);
+        localFilter(filters);
       } else {
-        // No filters, show all films
-        setDisplayedFilms(films);
+        // No filters, show all original films
+        setDisplayedFilms(originalFilms);
       }
     } catch (error) {
       console.error('Filtering failed:', error);
-      // Fallback to local filtering
       localFilter(filters);
     }
     
@@ -134,9 +138,9 @@ const MyWatchedFilmsPage = ({
     setShowFilters(false);
   };
 
-  // Local filtering fallback
+  // Local filtering - ALWAYS work from original data
   const localFilter = (filters) => {
-    let filtered = [...films];
+    let filtered = [...originalFilms]; // Use original films, not current displayed
 
     if (filters.genre) {
       filtered = filtered.filter(film => 
@@ -166,7 +170,7 @@ const MyWatchedFilmsPage = ({
     setMaxRating('');
     setYearFilter('');
     setActiveFilters({});
-    setDisplayedFilms(films);
+    setDisplayedFilms(originalFilms); // Restore from original films
     setShowFilters(false);
   };
 
@@ -174,9 +178,9 @@ const MyWatchedFilmsPage = ({
   const handleSearch = (term) => {
     setSearchTerm(term);
     if (term.trim() === '') {
-      setDisplayedFilms(films);
+      setDisplayedFilms(originalFilms); // Use original films when clearing search
     } else {
-      const searched = films.filter(film =>
+      const searched = originalFilms.filter(film => // Search in original films
         film.title.toLowerCase().includes(term.toLowerCase()) ||
         (film.genre && film.genre.toLowerCase().includes(term.toLowerCase()))
       );
@@ -355,7 +359,7 @@ const MyWatchedFilmsPage = ({
           {/* Results Summary */}
           <div className="flex items-center justify-between text-sm text-gray-400">
             <span>
-              Showing {displayedFilms.length} of {films.length} films
+              Showing {displayedFilms.length} of {originalFilms.length} films
             </span>
             {Object.keys(activeFilters).length > 0 && (
               <button
@@ -413,7 +417,7 @@ const MyWatchedFilmsPage = ({
             </div>
           ))}
         </div>
-      ) : films.length > 0 ? (
+      ) : originalFilms.length > 0 ? (
         <div className="text-center py-12">
           <Filter className="w-16 h-16 text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400 font-inter text-xl mb-2">No films match your current filters</p>
