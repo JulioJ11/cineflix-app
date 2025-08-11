@@ -88,7 +88,8 @@ const NavBar = ({ onNavigate, showBackButton, onBack, servicesHealth = {} }) => 
                 {Object.entries({
                   'Recommendations': servicesHealth.recommendation,
                   'Watchlist': servicesHealth.watchlist,
-                  'Sorting & Filtering': servicesHealth.sorting
+                  'Sorting & Filtering': servicesHealth.sorting,
+                  'Wildcard Suggestions': servicesHealth.wildcard
                 }).map(([serviceName, health]) => (
                   <div key={serviceName} className="flex items-center justify-between">
                     <span className="text-gray-300 text-xs">{serviceName}</span>

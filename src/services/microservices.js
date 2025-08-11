@@ -1,10 +1,10 @@
-// src/services/microservices.js
 // API integration layer for CineFlix microservices
 
 const SERVICES = {
   RECOMMENDATION: 'http://localhost:3001',
   WATCHLIST: 'http://localhost:3002',
-  SORTING: 'http://localhost:3003'
+  SORTING: 'http://localhost:3003',
+  WILDCARD: 'http://localhost:3004'
 };
 
 // Helper function for API calls with error handling
@@ -237,6 +237,34 @@ export const dataTransformers = {
   filmsFromMicroservice: (films) => films.map(dataTransformers.filmFromMicroservice)
 };
 
+// Wildcard Movie Suggestion Service API (Service E - Teammate's Service)
+export const wildcardService = {
+  // Get random movie suggestion
+  getWildcardSuggestion: async () => {
+    return apiCall(`${SERVICES.WILDCARD}/api/suggest`);
+  },
+
+  // Get random movie from specific genre
+  getGenreWildcard: async (genreId) => {
+    return apiCall(`${SERVICES.WILDCARD}/api/suggest/${genreId}`);
+  },
+
+  // Get available genres
+  getAvailableGenres: async () => {
+    return apiCall(`${SERVICES.WILDCARD}/api/genres`);
+  },
+
+  // Test responsiveness
+  testResponsiveness: async () => {
+    return apiCall(`${SERVICES.WILDCARD}/api/test/responsiveness`);
+  },
+
+  // Health check
+  healthCheck: async () => {
+    return apiCall(`${SERVICES.WILDCARD}/health`);
+  }
+};
+
 // Service health monitoring
 export const healthMonitor = {
   checkAllServices: async () => {
@@ -258,6 +286,12 @@ export const healthMonitor = {
       results.sorting = await sortingService.healthCheck();
     } catch (error) {
       results.sorting = { status: 'unhealthy', error: error.message };
+    }
+    
+    try {
+      results.wildcard = await wildcardService.healthCheck();
+    } catch (error) {
+      results.wildcard = { status: 'unhealthy', error: error.message };
     }
     
     return results;

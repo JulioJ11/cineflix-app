@@ -16,9 +16,9 @@ import {
   recommendationService, 
   watchlistService, 
   sortingService, 
+  wildcardService,
   dataTransformers,
   healthMonitor,
-  errorHandler,
   config
 } from './services/microservices';
 
@@ -41,109 +41,110 @@ const App = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [trendingFilms, setTrendingFilms] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
+  const [wildcardSuggestion, setWildcardSuggestion] = useState(null);
   const [isLoadingMicroservices, setIsLoadingMicroservices] = useState(false);
 
   // Initialize microservices and sync data on app load
   useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        // Try to load existing film collection from sorting service
+        const collectionResult = await sortingService.getFilmCollection(userId);
+        
+        if (collectionResult.success && collectionResult.watchedFilms) {
+          const transformedFilms = dataTransformers.filmsFromMicroservice(collectionResult.watchedFilms);
+          setWatchedFilms(transformedFilms);
+        }
+
+        // Load watchlist from watchlist service
+        const watchlistResult = await watchlistService.getWatchlist(userId);
+        if (watchlistResult.success && watchlistResult.films) {
+          console.log('Loaded watchlist:', watchlistResult.films); // Debug log
+          setWatchlist(watchlistResult.films);
+        } else {
+          console.log('No watchlist found or error:', watchlistResult); // Debug log
+        }
+
+      } catch (error) {
+        console.log('Error loading existing data:', error);
+      }
+    };
+
+    const initializeMicroservices = async () => {
+      setIsLoadingMicroservices(true);
+      
+      try {
+        // Check health of all microservices
+        const healthResults = await healthMonitor.checkAllServices();
+        setServicesHealth(healthResults);
+        
+        // Initialize user profile in recommendation service
+        await recommendationService.createUserProfile(userId, [], []);
+        
+        // Load existing data from sorting service
+        await loadExistingData();
+        
+        console.log('Microservices initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize microservices:', error);
+        showAlert('Some features may be limited due to service connectivity issues.');
+      } finally {
+        setIsLoadingMicroservices(false);
+      }
+    };
+
     initializeMicroservices();
-  }, []);
+  }, [userId]); // Only depend on userId
 
   // Sync data with microservices whenever watched films change
   useEffect(() => {
+    const loadRecommendations = async () => {
+      try {
+        const ratedFilms = watchedFilms.filter(film => film.rating > 0);
+        
+        if (ratedFilms.length >= 5) {
+          const recommendationsResult = await recommendationService.getRecommendations(userId, 5);
+          if (recommendationsResult.success) {
+            setRecommendations(recommendationsResult.recommendations);
+          }
+        }
+
+        // Load trending films
+        const trendingResult = await recommendationService.getTrending();
+        if (trendingResult.success) {
+          setTrendingFilms(trendingResult.trending);
+        }
+
+      } catch (error) {
+        console.error('Failed to load recommendations:', error);
+      }
+    };
+
+    const syncDataWithMicroservices = async () => {
+      try {
+        // Transform and sync watched films with sorting service
+        const transformedFilms = dataTransformers.filmsToMicroservice(watchedFilms);
+        await sortingService.updateFilmCollection(userId, transformedFilms, []);
+
+        // Sync ratings with recommendation service for films that have ratings
+        for (const film of watchedFilms) {
+          if (film.rating && film.rating > 0) {
+            await recommendationService.addRating(userId, film.id, film.rating);
+          }
+        }
+
+        // Load recommendations if user has enough ratings
+        await loadRecommendations();
+        
+      } catch (error) {
+        console.error('Failed to sync data with microservices:', error);
+      }
+    };
+
     if (watchedFilms.length > 0) {
       syncDataWithMicroservices();
     }
-  }, [watchedFilms]);
-
-  const initializeMicroservices = async () => {
-    setIsLoadingMicroservices(true);
-    
-    try {
-      // Check health of all microservices
-      const healthResults = await healthMonitor.checkAllServices();
-      setServicesHealth(healthResults);
-      
-      // Initialize user profile in recommendation service
-      await recommendationService.createUserProfile(userId, [], []);
-      
-      // Load existing data from sorting service
-      await loadExistingData();
-      
-      console.log('Microservices initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize microservices:', error);
-      showAlert('Some features may be limited due to service connectivity issues.');
-    } finally {
-      setIsLoadingMicroservices(false);
-    }
-  };
-
-  const loadExistingData = async () => {
-    try {
-      // Try to load existing film collection from sorting service
-      const collectionResult = await sortingService.getFilmCollection(userId);
-      
-      if (collectionResult.success && collectionResult.watchedFilms) {
-        const transformedFilms = dataTransformers.filmsFromMicroservice(collectionResult.watchedFilms);
-        setWatchedFilms(transformedFilms);
-      }
-
-      // Load watchlist from watchlist service
-      const watchlistResult = await watchlistService.getWatchlist(userId);
-      if (watchlistResult.success && watchlistResult.films) {
-        console.log('Loaded watchlist:', watchlistResult.films); // Debug log
-        setWatchlist(watchlistResult.films);
-      } else {
-        console.log('No watchlist found or error:', watchlistResult); // Debug log
-      }
-
-    } catch (error) {
-      console.log('Error loading existing data:', error);
-    }
-  };
-
-  const syncDataWithMicroservices = async () => {
-    try {
-      // Transform and sync watched films with sorting service
-      const transformedFilms = dataTransformers.filmsToMicroservice(watchedFilms);
-      await sortingService.updateFilmCollection(userId, transformedFilms, []);
-
-      // Sync ratings with recommendation service for films that have ratings
-      for (const film of watchedFilms) {
-        if (film.rating && film.rating > 0) {
-          await recommendationService.addRating(userId, film.id, film.rating);
-        }
-      }
-
-      // Load recommendations if user has enough ratings
-      await loadRecommendations();
-      
-    } catch (error) {
-      console.error('Failed to sync data with microservices:', error);
-    }
-  };
-
-  const loadRecommendations = async () => {
-    try {
-      const ratedFilms = watchedFilms.filter(film => film.rating > 0);
-      
-      if (ratedFilms.length >= 5) {
-        const recommendationsResult = await recommendationService.getRecommendations(userId, 5);
-        if (recommendationsResult.success) {
-          setRecommendations(recommendationsResult.recommendations);
-        }
-      }
-
-      // Load trending films
-      const trendingResult = await recommendationService.getTrending();
-      if (trendingResult.success) {
-        setTrendingFilms(trendingResult.trending);
-      }
-
-    } catch (error) {
-      console.error('Failed to load recommendations:', error);
-    }
-  };
+  }, [watchedFilms, userId]); // Include dependencies
 
   // Enhanced film addition with microservices integration
   const handleAddFilm = async (filmData) => {
@@ -271,7 +272,19 @@ const App = () => {
     }
   };
 
-  // Filtering function using microservice
+  // Wildcard suggestion function
+  const loadWildcardSuggestion = async () => {
+    try {
+      const result = await wildcardService.getWildcardSuggestion();
+      if (result.title) { // Basic success check
+        setWildcardSuggestion(result);
+        showAlert(`Wildcard suggestion: "${result.title}" - ${result.genre}`);
+      }
+    } catch (error) {
+      console.error('Failed to load wildcard suggestion:', error);
+      showAlert('Failed to load wildcard suggestion. Please try again.');
+    }
+  };
   const filterFilms = async (filters) => {
     try {
       const result = await sortingService.filterFilms(userId, filters, 'watched');
@@ -339,6 +352,7 @@ const App = () => {
       removeFromWatchlist,
       sortFilms,
       filterFilms,
+      loadWildcardSuggestion,
       isLoadingMicroservices
     };
 
@@ -350,6 +364,7 @@ const App = () => {
             recentlyAddedFilms={watchedFilms}
             setSelectedFilm={setSelectedFilm}
             servicesHealth={servicesHealth}
+            wildcardSuggestion={wildcardSuggestion}
           />
         );
       case 'addFilms':
@@ -397,6 +412,7 @@ const App = () => {
             recentlyAddedFilms={watchedFilms}
             setSelectedFilm={setSelectedFilm}
             servicesHealth={servicesHealth}
+            wildcardSuggestion={wildcardSuggestion}
           />
         );
     }

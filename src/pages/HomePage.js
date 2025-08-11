@@ -12,7 +12,9 @@ const HomePage = ({
   servicesHealth = {},
   addToWatchlist,
   showAlert,
-  userId
+  userId,
+  wildcardSuggestion = null,
+  loadWildcardSuggestion
 }) => {
   const [activeTab, setActiveTab] = useState('recent');
 
@@ -250,6 +252,104 @@ const HomePage = ({
           </div>
         );
 
+      case 'wildcard':
+        return (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <p className="text-gray-300 text-sm mb-4">
+                Feeling adventurous? Get a completely random movie suggestion!
+              </p>
+              <button
+                onClick={() => loadWildcardSuggestion && loadWildcardSuggestion()}
+                className="px-6 py-3 bg-purple-600 text-white rounded-full shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200 font-inter text-lg font-semibold"
+              >
+                🎲 Get New Wildcard
+              </button>
+            </div>
+            
+            {wildcardSuggestion ? (
+              <div className="flex justify-center">
+                <div className="bg-gray-700 p-6 rounded-lg shadow-xl border border-purple-400 max-w-md w-full">
+                  <div className="flex flex-col items-center text-center">
+                    {wildcardSuggestion.poster ? (
+                      <img
+                        src={wildcardSuggestion.poster}
+                        alt={wildcardSuggestion.title}
+                        className="w-32 h-48 object-cover rounded-md mb-4 shadow-lg"
+                        onError={(e) => { 
+                          e.target.onerror = null; 
+                          e.target.style.display = 'none';
+                          e.target.parentNode.innerHTML = '<div class="w-32 h-48 bg-gray-600 rounded-md mb-4 flex items-center justify-center text-gray-300 text-sm">No Poster</div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-32 h-48 bg-gray-600 rounded-md mb-4 flex items-center justify-center text-gray-300 text-sm">
+                        No Poster
+                      </div>
+                    )}
+                    
+                    <h4 className="text-xl font-bold text-white mb-2">{wildcardSuggestion.title}</h4>
+                    <p className="text-purple-400 text-sm mb-2">{wildcardSuggestion.genre} • {wildcardSuggestion.releaseYear}</p>
+                    
+                    {wildcardSuggestion.rating && (
+                      <div className="flex items-center space-x-2 mb-3">
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <span className="text-yellow-400 text-sm">{wildcardSuggestion.rating}/10</span>
+                      </div>
+                    )}
+                    
+                    <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+                      {wildcardSuggestion.description}
+                    </p>
+                    
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => addToWatchlist({
+                          id: wildcardSuggestion._id,
+                          title: wildcardSuggestion.title,
+                          genre: wildcardSuggestion.genre,
+                          releaseYear: wildcardSuggestion.releaseYear,
+                          description: wildcardSuggestion.description,
+                          poster: wildcardSuggestion.poster
+                        })}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-full hover:bg-blue-700 transition duration-200"
+                      >
+                        Add to Watchlist
+                      </button>
+                      
+                      <button
+                        onClick={() => loadWildcardSuggestion && loadWildcardSuggestion()}
+                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-full hover:bg-purple-700 transition duration-200"
+                      >
+                        🎲 Another One
+                      </button>
+                    </div>
+                    
+                    {wildcardSuggestion.metadata && (
+                      <div className="mt-4 pt-4 border-t border-gray-600">
+                        <p className="text-gray-500 text-xs">
+                          Source: {wildcardSuggestion.metadata.source}
+                        </p>
+                        {wildcardSuggestion.metadata.processingTime && (
+                          <p className="text-gray-500 text-xs">
+                            Response: {wildcardSuggestion.metadata.processingTime}ms
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🎲</div>
+                <p className="text-gray-400 font-inter text-lg mb-2">Ready for a surprise?</p>
+                <p className="text-gray-500 text-sm">Click "Get New Wildcard" to discover a random movie!</p>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return null;
     }
@@ -272,6 +372,7 @@ const HomePage = ({
             <ServiceHealthIndicator serviceName="Recommendations" health={servicesHealth.recommendation} />
             <ServiceHealthIndicator serviceName="Watchlist" health={servicesHealth.watchlist} />
             <ServiceHealthIndicator serviceName="Sorting" health={servicesHealth.sorting} />
+            <ServiceHealthIndicator serviceName="Wildcard" health={servicesHealth.wildcard} />
           </div>
         </div>
       </div>
@@ -301,7 +402,8 @@ const HomePage = ({
               { id: 'recent', label: 'Recently Added', icon: Clock },
               { id: 'recommendations', label: 'For You', icon: Star },
               { id: 'trending', label: 'Trending', icon: TrendingUp },
-              { id: 'watchlist', label: 'Watchlist', icon: Clock }
+              { id: 'watchlist', label: 'Watchlist', icon: Clock },
+              { id: 'wildcard', label: 'Wildcard', icon: () => <span className="text-sm">🎲</span> }
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
