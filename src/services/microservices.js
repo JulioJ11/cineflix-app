@@ -1,4 +1,4 @@
-// API integration layer for CineFlix microservices
+// API integration for CineFlix microservices
 
 const SERVICES = {
   RECOMMENDATION: 'http://localhost:3001',
@@ -317,20 +317,32 @@ export const errorHandler = {
     throw new Error(`${serviceName} service is currently unavailable. Please try again later.`);
   },
 
-  retryOperation: async (operation, maxRetries = 3, delay = 1000) => {
+  retryOperation: async (operation, maxRetries = 3, initialDelay = 1000) => {
+    let lastError;
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
+        lastError = error;
+        
         if (attempt === maxRetries) {
-          throw error;
+          throw lastError;
         }
         
-        console.warn(`Operation failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
+        // Calculate delay for this attempt (exponential backoff)
+        const currentDelay = initialDelay * Math.pow(2, attempt - 1);
+        console.warn(`Operation failed (attempt ${attempt}/${maxRetries}), retrying in ${currentDelay}ms...`);
+        
+        // Create delay without closure issues
+        await new Promise(resolve => {
+          setTimeout(resolve, currentDelay);
+        });
       }
     }
+    
+    // This should never be reached, but satisfies ESLint
+    throw lastError;
   }
 };
 
